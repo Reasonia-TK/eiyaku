@@ -106,3 +106,9 @@ tools/              生成・テストスクリプト
 - 数式・表のセルはブロック単位の近似翻訳になります
 - 翻訳品質はモデル依存です。重要な文書ではAPI方式(高性能モデル)を推奨します
 - Service Workerによるオフラインキャッシュは未実装(PWAマニフェストのみ)
+
+## ライセンス
+
+[MIT License](LICENSE) © 2026 Reasonia-TK
+
+実行時にCDNから読み込むライブラリ(pdf.js / WebLLM / pdf-lib / Noto Sans JP)は、それぞれのライセンスに従います。

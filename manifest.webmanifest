@@ -1,0 +1,14 @@
+{
+  "name": "eiyaku — PDF対訳リーダー",
+  "short_name": "eiyaku",
+  "description": "英語PDFを端末内で日本語に翻訳し、原文と並べて読めるリーダー",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#0b9aab",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

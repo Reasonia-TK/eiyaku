@@ -1,0 +1,6 @@
+node_modules/
+tools/out-test.pdf
+tools/shot-dark.png
+tools/shot-settings.png
+tools/shot-view.png
+*.log

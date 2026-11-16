@@ -1,0 +1,18 @@
+{
+  "name": "eiyaku",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "eiyaku - PDF対訳リーダー(英語PDFをブラウザ内で日本語に翻訳して並べて読む)",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "demo": "node tools/make_demo.mjs",
+    "test": "node tools/test_extract.mjs && node tools/test_export.mjs"
+  },
+  "devDependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
+    "puppeteer-core": "^25.17.0"
+  }
+}

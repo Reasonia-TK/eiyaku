@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eiyaku — PDF対訳リーダー</title>
+<meta name="description" content="英語のPDFをもとのレイアウトのまま日本語に翻訳し、原文と並べて読めるリーダー。PDFは端末内で処理し、外部には送信されません。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b9aab">
+<link rel="stylesheet" href="viewer.css">
+<script src="src/theme.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "pdfjs-dist": "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs",
+    "web-llm": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.84/lib/index.js/+esm",
+    "pdf-lib": "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm",
+    "@pdf-lib/fontkit": "https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/+esm"
+  }
+}
+</script>
+<script type="module" src="src/main.js"></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="./" title="eiyaku — PDF対訳リーダー">
+    <img src="favicon.svg" alt="">
+    <span class="wordmark">eiyaku</span>
+  </a>
+  <span class="sep brand-sep"></span>
+  <div class="doc">
+    <h1 id="title"></h1>
+    <div id="status" aria-live="polite"></div>
+  </div>
+  <div id="searchBox" role="search">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    <input id="q" type="search" placeholder="検索 · Ctrl + F" title="文書内を検索します(英語・日本語)" autocomplete="off" spellcheck="false">
+    <span id="qCount" aria-live="polite"></span>
+    <button id="qClear" type="button" aria-label="検索語を消す · Esc" title="消す · Esc"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    <div id="qList" hidden></div>
+  </div>
+  <div class="tools">
+    <label class="btn file primary" title="PDFを開く · Ctrl + O"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg><span class="lbl">開く</span><input type="file" id="file" accept="application/pdf,.pdf"></label>
+    <button id="translate" class="btn" disabled title="すべて訳し直す"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg><span class="lbl">訳し直す</span></button>
+    <button id="glossaryBtn" class="btn" title="訳語を固定する用語集"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg><span class="lbl">用語集</span></button>
+    <button id="saveBtn" class="btn" disabled title="訳文側をPDFファイルとして保存 · Ctrl + S"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg><span class="lbl">PDF保存</span></button>
+    <button id="settingsBtn" class="btn icon" title="設定" aria-label="設定"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+    <button id="dataBtn" class="btn icon" title="保存データ" aria-label="保存データ"><svg class="ic" viewBox="0 -960 960 960" aria-hidden="true"><path d="M480-120q-151 0-255.5-46.5T120-280v-400q0-66 105.5-113T480-840q149 0 254.5 47T840-680v400q0 67-104.5 113.5T480-120Zm0-479q89 0 179-25.5T760-679q-11-29-100.5-55T480-760q-91 0-178.5 25.5T200-679q14 30 101.5 55T480-599Zm0 199q42 0 81-4t74.5-11.5q35.5-7.5 67-18.5t57.5-25v-120q-26 14-57.5 25t-67 18.5Q600-528 561-524t-81 4q-42 0-82-4t-75.5-11.5Q287-543 256-554t-56-25v120q25 14 56 25t66.5 18.5Q358-408 398-404t82 4Zm0 200q46 0 93.5-7t87.5-18.5q40-11.5 67-26t32-29.5v-98q-26 14-57.5 25t-67 18.5Q600-328 561-324t-81 4q-42 0-82-4t-75.5-11.5Q287-343 256-354t-56-25v99q5 15 31.5 29t66.5 25.5q40 11.5 88 18.5t94 7Z"/></svg></button>
+  </div>
+  <div id="progress" hidden><div></div></div>
+</header>
+
+<div id="alert" role="alert" hidden><span id="alertText"></span><button type="button" id="alertClose" class="btn icon" aria-label="閉じる" title="閉じる">×</button></div>
+
+<main id="main">
+  <div class="pane" id="src" aria-label="原文"></div>
+  <div class="pane" id="dst" aria-label="訳文"></div>
+  <div id="drop">
+    <div id="dropLead">英語の論文をそのまま日本語で</div>
+    <div id="dropWays">
+      <label for="file" class="way" id="wayFile">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15.01l1.41 1.41L11 14.84V19h2v-4.16l1.59 1.59L16 15.01 12.01 11 8 15.01z"/></svg>
+        <b class="swap"><span>PDFをドロップ</span><span>PDFを選択して開く</span></b>
+      </label>
+      <div class="way" id="wayArxiv">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+        <b><label for="arxivUrl">arXiv のURLを貼り付け</label></b>
+        <input id="arxivUrl" type="text" inputmode="url" placeholder="arxiv.org/abs/2401.12345" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div id="dropNote">PDFは端末内で処理し、外部へ送信されません。<br><small>翻訳はブラウザ内のLLM(WebGPU)で実行します。初回はモデルのダウンロード(約1〜2GB)が必要です。</small></div>
+    <div id="dropError" role="alert" hidden></div>
+    <div id="dropDemo"><button type="button" id="demoBtn" class="btn">見本の論文で試す</button></div>
+  </div>
+  <div id="dropGlow" aria-hidden="true"><span id="dropGlowText">PDFをドロップして開く</span></div>
+</main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="darkPage" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncR type="linear" slope="0.780" intercept="0.086"/><feFuncG type="linear" slope="0.749" intercept="0.149"/><feFuncB type="linear" slope="0.706" intercept="0.227"/></feComponentTransfer></filter></svg>
+
+<div id="splitter" role="separator" aria-orientation="horizontal" title="ドラッグで辞書パネルの高さを変更。ダブルクリックで折りたたみ"></div>
+
+<footer>
+  <div id="dictCell" class="cell">
+    <div id="dictPanel"><div class="hint big">辞書</div><div class="hint">原文・訳文をクリックすると、ここに文が表示されます。単語を選択すると用語集に登録できます。</div></div>
+  </div>
+  <div id="colSplit" role="separator" aria-orientation="vertical" title="ドラッグで辞書と関連の欄の幅を変更"></div>
+  <div id="infoCell" class="cell">
+    <div id="infoPanel"><div class="hint big">関連</div><div class="hint">選んだ単語を含む他の文がここに表示されます。</div></div>
+  </div>
+</footer>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <form method="dialog">
+    <h2 id="settingsTitle">設定</h2>
+    <fieldset>
+      <label class="line">テーマ
+        <select id="theme">
+          <option value="system">システムに合わせる</option>
+          <option value="light">ライト</option>
+          <option value="dark">ダーク</option>
+        </select>
+      </label>
+      <label class="line">画面の文字サイズ
+        <select id="uiScale">
+          <option value="small">小</option>
+          <option value="normal">標準</option>
+          <option value="large">大</option>
+        </select>
+      </label>
+      <label class="line">関連する箇所の言語
+        <select id="relatedLang">
+          <option value="auto">選んだ側に合わせる</option>
+          <option value="ja">常に日本語</option>
+          <option value="en">常に英語</option>
+        </select>
+      </label>
+      <label class="line">辞書パネルの位置
+        <select id="panelPos">
+          <option value="top-left">上・左</option>
+          <option value="top-right">上・右</option>
+          <option value="bottom-left">下・左</option>
+          <option value="bottom-right">下・右</option>
+        </select>
+      </label>
+      <label class="row"><input type="checkbox" id="darkPages"> ダークテーマではページも暗くする</label>
+      <label class="row"><input type="checkbox" id="trimMargins"> ページの余白を削って表示する</label>
+      <label class="row"><input type="checkbox" id="swapPanes"> 英語と日本語の左右を入れ替える</label>
+      <label class="row"><input type="checkbox" id="showDict"> 辞書を表示する</label>
+      <label class="row"><input type="checkbox" id="showInfo"> 辞書の横に関連単語と文章を表示する</label>
+      <label class="row"><input type="checkbox" id="wheelZoom"> マウスホイールで拡大・縮小する。オフなら Ctrl + ホイール</label>
+    </fieldset>
+    <h3>翻訳エンジン</h3>
+    <fieldset>
+      <label class="line">方式
+        <select id="engineMode">
+          <option value="local">ローカル(ブラウザ内・WebGPU)</option>
+          <option value="api">API(OpenAI互換)</option>
+        </select>
+      </label>
+      <div id="localOpts">
+        <label class="line">モデル
+          <select id="localModel">
+            <option value="Qwen3-1.7B-q4f16_1-MLC">Qwen3-1.7B(推奨・約1.1GB)</option>
+            <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B(軽量・約0.9GB)</option>
+            <option value="Qwen3-4B-q4f16_1-MLC">Qwen3-4B(高品質・約2.5GB)</option>
+            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B(軽量・約0.7GB)</option>
+          </select>
+        </label>
+        <p class="note">ローカル方式は WebGPU 対応ブラウザ(Chrome / Edge 等)が必要です。モデルは初回のみダウンロードされ、端末にキャッシュされます。翻訳中はGPUを使用します。</p>
+      </div>
+      <div id="apiOpts" hidden>
+        <label class="line">エンドポイント
+          <input type="url" id="apiEndpoint" placeholder="https://api.openai.com/v1" spellcheck="false">
+        </label>
+        <label class="line">モデル名
+          <input type="text" id="apiModel" placeholder="gpt-4o-mini" spellcheck="false">
+        </label>
+        <label class="line">APIキー
+          <input type="password" id="apiKey" placeholder="sk-..." spellcheck="false" autocomplete="off">
+        </label>
+        <p class="note">API方式では原文テキストが指定したサーバーへ送信されます。キーは端末内にのみ保存されます。OpenAI互換の /chat/completions を使用します。</p>
+      </div>
+    </fieldset>
+    <menu>
+      <button type="button" id="resetSettings" class="btn">設定を初期値に戻す</button><span id="resetNote" class="note" aria-live="polite"></span>
+      <span class="spacer"></span>
+      <button value="ok" class="btn primary">閉じる</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="dataDlg" aria-labelledby="dataTitle">
+  <form method="dialog">
+    <h2 id="dataTitle">保存データ</h2>
+    <p class="note" id="storeTotal">計算中…</p>
+    <div class="pick-tools">
+      <div class="pick-row">
+        <span class="pick-label"><b id="oldLabel">30日</b>以上開いていない訳文<small id="oldCount"></small></span>
+        <input type="range" id="oldDays" min="0" max="365" step="1" value="30" aria-label="開いていない期間">
+        <button type="button" id="pickOld" class="btn small-btn">選ぶ</button>
+      </div>
+      <span class="pick-more"><button type="button" id="pickAll" class="btn small-btn">すべて選ぶ</button><button type="button" id="pickNone" class="btn small-btn">選択を外す</button></span>
+    </div>
+    <div class="store-wrap"><table id="storeList"></table></div>
+    <div class="store-head">
+      <span class="note" id="dataNote" aria-live="polite"></span>
+      <button type="button" id="clearPicked" class="btn small-btn danger" disabled>選んだ訳文を消去</button>
+    </div>
+    <h3>全論文で共通のデータ</h3>
+    <div class="store-wrap"><table id="storeSystem"></table></div>
+    <menu>
+      <span class="spacer"></span>
+      <button value="ok" class="btn primary">閉じる</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="glossaryDlg" aria-labelledby="glossaryTitle">
+  <h2 id="glossaryTitle">用語集</h2>
+  <p class="note">ここで決めた訳語は翻訳のたびに固定されます。辞書パネルの「用語集に追加」からも登録できます。</p>
+  <div class="gtable-wrap"><table id="gtable"><thead><tr><th>英語</th><th>訳語</th><th></th></tr></thead><tbody></tbody></table></div>
+  <div class="gbuttons">
+    <button type="button" id="gAdd" class="btn">+ 行を追加</button>
+    <button type="button" id="gText" class="btn">テキストで編集</button>
+  </div>
+  <textarea id="gArea" rows="10" hidden placeholder="holding torque: 保持トルク"></textarea>
+  <menu>
+    <button type="button" id="gCancel" class="btn">キャンセル</button>
+    <button type="button" id="gSave" class="btn primary">保存して訳し直す</button>
+  </menu>
+</dialog>
+
+</body>
+</html>
